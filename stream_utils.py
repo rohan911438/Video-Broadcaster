@@ -47,14 +47,12 @@ class Streaming(CustomSegmentationWithYolo):
         except Exception as e: 
             print(f"Webcam({self.input_source}), live fps not available. Setting fps to {self.original_fps}. Exception info : {e}")
 
-        if self.fps:
-            if self.fps>self.original_fps:
+        if self.fps and self.fps > 0 and self.original_fps > 0:
+            if self.fps > self.original_fps:
                 self.fps = self.original_fps
-                frame_interval = int(self.original_fps / self.fps)
-            else:
-                frame_interval = int(self.original_fps / self.fps)
+            frame_interval = max(1, int(self.original_fps / self.fps))
         else:
-            frame_interval=1
+            frame_interval = 1
 
         with pyvirtualcam.Camera(width=width, height=height, fps=self.fps) as cam:
             print(f"Virtual camera running at {width}x{height} {self.fps}fps")
@@ -87,7 +85,7 @@ class Streaming(CustomSegmentationWithYolo):
 
     def list_available_devices(self):
         devices = []
-        for i in range(5):
+        for i in range(10):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
                 devices.append({"id": i, "name": f"Camera {i}"})

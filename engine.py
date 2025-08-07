@@ -2,13 +2,21 @@ import cv2
 from ultralytics import YOLO
 import numpy as np
 import torch
+import os
 
 class CustomSegmentationWithYolo():
     def __init__(self, erode_size=5, erode_intensity=2):
          self.model = YOLO('yolov8m-seg.pt')
          self.erode_size = erode_size
          self.erode_intensity = erode_intensity
-         self.background_image = cv2.imread("./static/default-office-animated.png")
+         self.background_image = self._load_background_image("./static/default-office-animated.png")
+         
+    def _load_background_image(self, path):
+        if os.path.exists(path):
+            return cv2.imread(path)
+        else:
+            print(f"Warning: Background image not found at {path}. Using black background instead.")
+            return np.zeros((480, 640, 3), dtype=np.uint8) # Default black image
          
     def generate_mask_from_result(self,results):
         for result in results:

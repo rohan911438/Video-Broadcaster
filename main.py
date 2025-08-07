@@ -25,7 +25,7 @@ def serve_ui():
 
 @app.get("/start")
 def start_stream(
-    source: str = Query("0"),
+    source: int = Query(0),
     fps: int = Query(15),
     blur_strength: int = Query(21),
     background: str = Query("none")
@@ -49,8 +49,11 @@ def start_stream(
 
 @app.get("/stop")
 def stop_stream():
-    streaming.update_running_status()
-    return {"message": "Streaming stopped"}
+    if streaming.running:
+        streaming.update_running_status(False)
+        if stream_thread and stream_thread.is_alive():
+            stream_thread.join(timeout=5)
+        return {"message": "Streaming stopped"}
 
 
 @app.get("/devices")
