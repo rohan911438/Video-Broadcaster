@@ -84,7 +84,7 @@
     </style>
 </head>
 <body>
-    <img src="/static/KNA.jpg" alt="Logo" class="logo">
+    <img src="/static/KNA.png" alt="Logo" class="logo">
     <div class="container">
         <!-- <img src="/static/KNA.jpg" alt="Logo" class="logo"> -->
         <h1>Virtual Camera Controller</h1>
@@ -93,6 +93,8 @@
                 <button onclick="getDevices()">List Devices</button>
                 <button onclick="startStream()">Start Stream</button>
                 <button onclick="stopStream()">Stop Stream</button>
+                <button onclick="getStatus()">Get Status</button>
+                <button onclick="refreshStatus()" style="background: #28a745;">Auto Refresh Status</button>
             </div>
             <div class="inputs">
                 <label for="camera">Choose Camera:</label>
@@ -102,14 +104,14 @@
                 <input id="fps" type="number" min="1" max="60" value="15">
                 
                 <label for="blur">Blur Strength (Odd number)</label>
-                <input id="blur" type="range" min="0" max="52" value="10" oninput="updateBlurValue(this.value)">
-                <span id="blurValue">Blur Strength: 10</span>
+                <input id="blur" type="range" min="1" max="51" step="2" value="21" oninput="updateBlurValue(this.value)">
+                <span id="blurValue">Blur Strength: 21</span>
 
                 <label for="background">Background:</label>
                 <select id="background">
-                    <option value="none">No background</option>
-                    <option value="blur">Blur</option>
-                    <option value="default">Default</option>
+                    <option value="none">No background (Black)</option>
+                    <option value="blur">Blur background</option>
+                    <option value="default">Custom background</option>
                 </select>
             </div>
         </div>
@@ -118,15 +120,33 @@
     </div>
 
     <script>
+        let autoRefreshInterval;
+        let isAutoRefreshing = false;
+
+        // Load devices on page load
+        window.onload = function() {
+            getDevices();
+            getStatus();
+        };
+
         function getDevices() {
             fetch('/devices')
                 .then(response => response.json())
                 .then(data => {
                     const select = document.getElementById('camera');
                     select.innerHTML = '';
-                    data.forEach(device => {
-                        select.innerHTML += `<option value="${device.id}">${device.name}</option>`;
-                    });
+                    if (data.length === 0) {
+                        select.innerHTML = '<option value="">No cameras found</option>';
+                        updateStatus('No cameras detected. Please check your camera connections.');
+                    } else {
+                        data.forEach(device => {
+                            select.innerHTML += `<option value="${device.id}">${device.name}</option>`;
+                        });
+                        updateStatus(`Found ${data.length} camera(s)`);
+                    }
+                })
+                .catch(error => {
+                    updateStatus(`Error getting devices: ${error.message}`);
                 });
         }
 
@@ -136,23 +156,79 @@
             const blur = document.getElementById('blur').value;
             const background = document.getElementById('background').value;
 
-            fetch(`/start?source=${source}&fps=${fps}&blur=${blur}&background=${background}`)
+            if (!source && source !== '0') {
+                updateStatus('Please select a camera first');
+                return;
+            }
+
+            updateStatus('Starting stream...');
+            
+            fetch(`/start?source=${source}&fps=${fps}&blur_strength=${blur}&background=${background}`)
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('status').innerText = data.message;
+                    updateStatus(data.message);
+                    if (response.ok) {
+                        setTimeout(getStatus, 1000); // Get status after starting
+                    }
+                })
+                .catch(error => {
+                    updateStatus(`Error starting stream: ${error.message}`);
                 });
         }
 
         function stopStream() {
+            updateStatus('Stopping stream...');
             fetch('/stop')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('status').innerText = data.message;
+                    updateStatus(data.message);
+                    setTimeout(getStatus, 1000); // Get status after stopping
+                })
+                .catch(error => {
+                    updateStatus(`Error stopping stream: ${error.message}`);
                 });
         }
 
+        function getStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusText = data.running ? 
+                        `🟢 STREAMING - Source: ${data.input_source}, FPS: ${data.fps}, Blur: ${data.blur_strength}, Background: ${data.background}` :
+                        '🔴 STOPPED - Stream is not running';
+                    updateStatus(statusText);
+                })
+                .catch(error => {
+                    updateStatus(`Error getting status: ${error.message}`);
+                });
+        }
+
+        function refreshStatus() {
+            if (isAutoRefreshing) {
+                clearInterval(autoRefreshInterval);
+                isAutoRefreshing = false;
+                document.querySelector('button[onclick="refreshStatus()"]').textContent = 'Auto Refresh Status';
+                document.querySelector('button[onclick="refreshStatus()"]').style.background = '#28a745';
+            } else {
+                autoRefreshInterval = setInterval(getStatus, 2000); // Refresh every 2 seconds
+                isAutoRefreshing = true;
+                document.querySelector('button[onclick="refreshStatus()"]').textContent = 'Stop Auto Refresh';
+                document.querySelector('button[onclick="refreshStatus()"]').style.background = '#dc3545';
+            }
+        }
+
         function updateBlurValue(value) {
-            document.getElementById('blurValue').innerText = `Blur Strength: ${value}`;
+            // Ensure odd number
+            if (value % 2 === 0) {
+                value = parseInt(value) + 1;
+                document.getElementById('blur').value = value;
+            }
+            document.getElementById('blurValue').textContent = `Blur Strength: ${value}`;
+        }
+
+        function updateStatus(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            document.getElementById('status').innerHTML = `[${timestamp}] ${message}`;
         }
     </script>
 </body>
