@@ -1,0 +1,6 @@
+1. create conda env (broadcaster_live)
+2.conda activate broadcaster_live
+3. pip install -r requirements.txt
+4. open python interpreter
+5. import torch
+6. 
