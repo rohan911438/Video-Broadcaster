@@ -39,11 +39,19 @@ class ServerConfig:
 @dataclass
 class AppConfig:
     """Main application configuration"""
-    stream: StreamConfig = StreamConfig()
-    model: ModelConfig = ModelConfig()
-    server: ServerConfig = ServerConfig()
+    stream: StreamConfig = None
+    model: ModelConfig = None
+    server: ServerConfig = None
     
     def __post_init__(self):
+        # Initialize sub-configs if not provided
+        if self.stream is None:
+            self.stream = StreamConfig()
+        if self.model is None:
+            self.model = ModelConfig()
+        if self.server is None:
+            self.server = ServerConfig()
+            
         # Validate model file exists
         if not os.path.exists(self.model.model_path):
             raise FileNotFoundError(f"YOLO model file not found: {self.model.model_path}")
